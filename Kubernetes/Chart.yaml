@@ -1,0 +1,4 @@
+apiVersion: v1
+description: A Helm chart for rick-and-morty
+name: rick-and-morty
+version: 1.0.0

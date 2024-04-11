@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Chart.Name }}
+  labels:
+    app: {{ $.Chart.Name }}
+spec:
+  progressDeadlineSeconds: {{ $.Values.deployment.progressDeadlineSeconds | default 600 }}
+  revisionHistoryLimit: {{ $.Values.deployment.revisionHistoryLimit | default 4 }}
+  minReadySeconds: {{ $.Values.deployment.minReadySeconds | default 30 }}
+  {{- if $.Values.deployment.replicas }}
+  replicas: {{ $.Values.deployment.replicas }}
+  {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: {{ $.Values.deployment.rollingUpdate.maxUnavailable }}
+      maxSurge: {{ $.Values.deployment.rollingUpdate.maxSurge }}
+  selector:
+    matchLabels:
+      app: {{ $.Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $.Chart.Name }}
+    spec:
+      {{- if $.Values.deployment.nodeSelector }}
+      nodeSelector:
+        {{- toYaml $.Values.deployment.nodeSelector | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ $.Values.deployment.terminationGracePeriodSeconds | default 100 }}
+      enableServiceLinks: false
+      containers:
+      - name: {{ $.Chart.Name }}
+        image: {{ include "app.image" . }}
+        imagePullPolicy: {{ $.Values.deployment.image.pullPolicy | quote }}
+        {{- if $.Values.deployment.command }}
+        command:
+        - {{ $.Values.deployment.command }}
+        {{- else }}
+        command: []
+        {{- end }}
+        {{- if $.Values.deployment.args }}
+        args:
+        {{- range (split " " $.Values.deployment.args) }}
+        - {{ . }}
+        {{- end }}
+        {{- else }}
+        args: []
+        {{- end }}
+        ports:
+        - name: {{ $.Chart.Name | trunc 15 }}
+          containerPort: {{ $.Values.deployment.ports.app }}
+          {{- if $.Values.deployment.ports.hostPortapp }}
+          hostPort: {{ $.Values.deployment.ports.hostPortapp }}
+          {{- end }}
+          protocol: {{ $.Values.service.protocol }}
+        {{- with $.Values.deployment.env }}
+        env:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if $.Values.deployment.healthProbes.enabled }}
+        {{- if $.Values.deployment.healthProbes.readinessProbe.enabled }}
+        readinessProbe:
+          httpGet:
+            path: {{ $.Values.deployment.healthProbes.readinessProbe.path | default "/ready" }}
+            port: {{ $.Values.deployment.healthProbes.readinessProbe.port | default $.Values.deployment.ports.app }}
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: {{ $.Values.deployment.healthProbes.readinessProbe.timeoutSeconds | default 30 }}
+          failureThreshold: {{ $.Values.deployment.healthProbes.readinessProbe.failureThreshold | default 7 }}
+        {{- end }}
+        {{- if $.Values.deployment.healthProbes.livenessProbe.enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ $.Values.deployment.healthProbes.livenessProbe.path | default "/ready" }}
+            port: {{ $.Values.deployment.healthProbes.livenessProbe.port | default $.Values.deployment.ports.app }}
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          timeoutSeconds: {{ $.Values.deployment.healthProbes.livenessProbe.timeoutSeconds | default 30 }}
+          failureThreshold: {{ $.Values.deployment.healthProbes.livenessProbe.failureThreshold | default 3 }}
+        {{- end }}
+        {{- end }}
+        {{- if $.Values.deployment.resources }}
+        resources:
+          {{- if $.Values.deployment.resources.requests }}
+          requests:
+            {{- if $.Values.deployment.resources.requests.memory }}
+            memory: {{ $.Values.deployment.resources.requests.memory }}
+            {{- end }}
+            {{- if $.Values.deployment.resources.requests.cpu }}
+            cpu: {{ $.Values.deployment.resources.requests.cpu }}
+            {{- end }}
+          {{- end }}
+          {{- if $.Values.deployment.resources.limits }}
+          limits:
+            {{- if $.Values.deployment.resources.limits.memory }}
+            memory: {{ $.Values.deployment.resources.limits.memory }}
+            {{- end }}
+            {{- if $.Values.deployment.resources.limits.cpu }}
+            cpu: {{ $.Values.deployment.resources.limits.cpu }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+        {{- if $.Values.deployment.securityContext }}
+        securityContext:
+          {{- toYaml $.Values.deployment.securityContext | nindent 10 }}
+        {{- end }}
+      {{- if $.Values.deployment.podSecurityContext }}
+      securityContext:
+        {{- toYaml $.Values.deployment.podSecurityContext | nindent 8 }}
+      {{- end }}

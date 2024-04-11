@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  rick-and-morty:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rick-and-morty
+    restart: always
+    ports:
+      - 8080:8080
