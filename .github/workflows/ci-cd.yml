@@ -1,12 +1,20 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
 name: CI-CD
 
-on: 
-  workflow_dispatch:
-    inputs:
-      serviceName:
-        description: 'Service Name, choose one of the following: funny or useless'
-        required: true
-        type: string
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+defaults:
+  run:
+    shell: bash -Eeuo pipefail -x {0}
 
 jobs:
   build-and-deploy:
@@ -29,28 +37,39 @@ jobs:
       with:
         context: Application/
         push: true
-        tags: yuvals41/rick-and-morty
+        tags: yuvals41/rick-and-morty:${{ github.run_number }}
 
     - name: Create k8s Kind Cluster
       uses: helm/kind-action@v1
+      with:
+        wait: 120s
+        version: v0.21.0
+        config: Application/kind-config.yaml
 
-    - name: Install Helm
-      uses: azure/setup-helm@v1
+    - name: installing nginx ingress
+      run: |
+        helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+        helm repo update
+        helm upgrade --install -n kube-system ingress-nginx ingress-nginx/ingress-nginx \
+            --set controller.hostPort.enabled=true \
+            --set controller.admissionWebhooks.enabled=false
+
+        kubectl -n kube-system wait --timeout=60s --for=condition=ready pod -l app.kubernetes.io/name=ingress-nginx
 
     - name: Deploy to Kubernetes
-      working-directory: Kubernetes
-      continue-on-error: true
+      working-directory: Helm
       run: |
-        helm upgrade --wait --install --namespace default rick-and-morty .
-          
+        helm upgrade --wait --install --namespace default rick-and-morty . \
+          --namespace default \
+          --set image.tag=${{ github.run_number }}
+
 
     - name: Run Tests for rick-and-morty
       uses: nick-fields/retry@v2
-      continue-on-error: true
       with:
         max_attempts: 5
         retry_on: error
-        timeout_seconds: 5
+        timeout_seconds: 60
         command: |
-          (curl --fail -s https://<domain-1>/ready || exit 1) &&
-          (curl --fail -s https://<domain-1>/uselessfact || exit 1)
+          (curl --fail --max-time 60 http://localhost/healthcheck || exit 1) &&
+          (curl --fail --max-time 60 http://localhost/get_details || exit 1)

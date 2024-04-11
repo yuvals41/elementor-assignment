@@ -12,7 +12,7 @@ RUN python -m venv /app/venv
 COPY requirements.txt ./requirements.txt
 RUN /app/venv/bin/pip install --no-cache-dir -r ./requirements.txt
 
-#Used multistage for better caching and light weight image
+#used multistage for better caching and light weight image
 FROM python:3.11-slim-buster 
 
 # create user

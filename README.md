@@ -13,14 +13,39 @@ I used it on my linux and windows machines it should work on Mac also
 
 git clone the repo
 
+# For local Tests without docker
+Created a RESTful webapp in python with enpoints /get_details and /healthcheck
+
+Windows:
+```
+python Application/app.py
+```
+
+Linux/Mac:
+```
+python3 Application/app.py
+```
+
+Test it
+```
+curl localhost:8080//healthcheck
+curl localhost:8080/get_details
+```
+
 # For local Tests with docker only
+can build with buildx:
+```
+docker buildx build --load -t rick-and-morty Application 
+```
+
+Or docker compose:
 ```
 docker compose --file Application/docker-compose.yaml up -d
 ```
 
 test it
 ```
-curl http://localhost:8080/health
+curl http://localhost:8080/healthcheck
 curl http://localhost:8080/get_details
 ```
 
@@ -87,21 +112,60 @@ helm repo update
 helm upgrade --install -n kube-system ingress-nginx ingress-nginx/ingress-nginx \
     --set controller.hostPort.enabled=true \
     --set controller.admissionWebhooks.enabled=false
-```
 
-
-## Install both services
-```
-helm upgrade --install elementor-assignment Kubernetes/
+kubectl -n kube-system wait --for=condition=ready pod -l app.kubernetes.io/name=ingress-nginx
 ```
 
 After one minute because the nginx controller takes a few seconds to be ready you can try to access the endpoints
 
+## Install service with yamls
 ```
-curl http://localhost/health
+kubectl apply -f yamls/
+```
+
+```
+curl http://localhost/healthcheck
 curl http://localhost/get_details
 ```
 
+
+
+## Install service with Helm
+```
+helm upgrade --wait --install rick-and-morty Helm/
+```
+
+```
+curl http://localhost/healthcheck
+curl http://localhost/get_details
+```
+
+
+## GitHub Actions Workflow: CI-CD Pipeline
+This CI-CD pipeline automates the process of building, testing, and deploying applications using Docker and Kubernetes. It is triggered on any push or pull request to the main branch.
+
+### Workflow
+1. Checkout Repository: Clones the code for access by subsequent steps.
+
+2. Set up Docker Buildx: Prepares the environment for building Docker images with Buildx for advanced features.
+
+3. Login to Docker Registry: Authenticates to Docker Hub to enable image push capabilities using secured credentials.
+
+4. Build and Push Docker Image: Constructs the Docker image from the Application/ directory and pushes it to a Docker Hub repository with a different tag version every run .
+
+5. Create k8s Kind Cluster: Initializes a Kubernetes cluster using Kind, configured via Application/kind-config.yaml.
+
+6. Installing NGINX Ingress: Deploys NGINX Ingress in the cluster to manage external access to services.
+
+7. Deploy to Kubernetes: Applies Kubernetes manifests using Helm from the Helm/ directory to deploy the application.
+
+7. Run Tests: Executes end-to-end tests to verify the deployment, retrying up to 5 times in case of failures.
+
+### Concurrency
+This pipeline ensures that only the latest run is processed at any time by cancelling any in-progress runs when a new run is triggered.
+
+### Execution
+Push changes to the main branch or open a pull request targeting main to initiate the workflow.
 
 ## NOTES
 - In order to convert the original script to the REST application, i put the csv writer inside the get_humanoid_characters_details() so you could see i did the first task

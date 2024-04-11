@@ -21,14 +21,14 @@ deployment:
   command: "python3"
   args: "app.py"
   healthProbes: 
-    enabled: false
+    enabled: true
     readinessProbe:
-      enabled: false
-      path: /health
+      enabled: true
+      path: /healthcheck
       port: 8080
     livenessProbe:
-      enabled: false
-      path: /health
+      enabled: true
+      path: /healthcheck
       port: 8080
   securityContext:
     runAsNonRoot: true

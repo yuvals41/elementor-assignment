@@ -4,6 +4,21 @@ from flask import Flask, jsonify
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+
+def write_to_csv(characters: list):
+    if characters is None:
+        logging.error("No data to write to CSV.")
+    
+    try:
+        with open("humanoid_characters.csv", "w", newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=["Name", "Location", "Image"])
+            writer.writeheader()
+            for character in characters:
+                writer.writerow(character)
+        logging.info("Data written to CSV successfully.")
+    except Exception as e:
+        logging.error(f"Failed to write to CSV: {e}")
+
 def get_humanoid_characters_details() -> list:
     results = list()
     page = 1
@@ -12,7 +27,7 @@ def get_humanoid_characters_details() -> list:
     #breaks when last page is reached
     while True:
         try:
-            response = requests.get(f"https://rickandmortyapi.com/api/character?page={page}")
+            response = requests.get(f"https://rickandmortyapi.com/api/character?page={page}", timeout=10)
             response.raise_for_status()
             data = response.json()
 
@@ -24,10 +39,10 @@ def get_humanoid_characters_details() -> list:
                                     "Image": character_details["image"]
                                 })
 
-            if data["info"]["next"]:
-                page += 1
-            else:
+            if not data["info"]["next"]:
                 break
+
+            page += 1
 
         except requests.RequestException as err:
             logging.error(f"API request failed: {err}")
@@ -37,25 +52,21 @@ def get_humanoid_characters_details() -> list:
             return None
         
     logging.info("Data fetched successfully.")
-
-    #i put the csv writer here so you can see i did the first step, instead of removing it or writing it as a function that i dont use
-    with open("humaniod_character_details.csv", "w") as csvfile:
-        csv_writer = csv.DictWriter(csvfile,fieldnames=["Name", "Location", "Image"])
-        logging.info("Writing to csv")
-
-        for result in results:
-            csv_writer.writerow(result)
+    write_to_csv(results)
 
     return results
 
 
-@app.route("/health")
+@app.route("/healthcheck")
 def health():
     return jsonify({'status': 'healthy'}), 200
 
 @app.route("/get_details")
 def get_details():
-    return get_humanoid_characters_details(), 200
+    characters = get_humanoid_characters_details()
+    if characters is None:
+        return jsonify({'error': 'Failed to fetch data'}), 500
+    return jsonify(characters), 200
 
 if "__main__"  == __name__ :
     app.run(host="0.0.0.0",port=8080)

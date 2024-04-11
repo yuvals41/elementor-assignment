@@ -66,7 +66,7 @@ spec:
             path: {{ $.Values.deployment.healthProbes.readinessProbe.path | default "/ready" }}
             port: {{ $.Values.deployment.healthProbes.readinessProbe.port | default $.Values.deployment.ports.app }}
             scheme: HTTP
-          initialDelaySeconds: 5
+          initialDelaySeconds: 3
           periodSeconds: 10
           timeoutSeconds: {{ $.Values.deployment.healthProbes.readinessProbe.timeoutSeconds | default 30 }}
           failureThreshold: {{ $.Values.deployment.healthProbes.readinessProbe.failureThreshold | default 7 }}
@@ -77,10 +77,10 @@ spec:
             path: {{ $.Values.deployment.healthProbes.livenessProbe.path | default "/ready" }}
             port: {{ $.Values.deployment.healthProbes.livenessProbe.port | default $.Values.deployment.ports.app }}
             scheme: HTTP
-          initialDelaySeconds: 15
-          periodSeconds: 15
+          initialDelaySeconds: 3
+          periodSeconds: 5
           timeoutSeconds: {{ $.Values.deployment.healthProbes.livenessProbe.timeoutSeconds | default 30 }}
-          failureThreshold: {{ $.Values.deployment.healthProbes.livenessProbe.failureThreshold | default 3 }}
+          failureThreshold: {{ $.Values.deployment.healthProbes.livenessProbe.failureThreshold | default 5 }}
         {{- end }}
         {{- end }}
         {{- if $.Values.deployment.resources }}

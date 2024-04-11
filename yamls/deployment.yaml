@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rick-and-morty
+  labels:
+    app: rick-and-morty
+spec:
+  progressDeadlineSeconds: 600
+  revisionHistoryLimit: 4
+  minReadySeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 50%
+      maxSurge: 50%
+  selector:
+    matchLabels:
+      app: rick-and-morty
+  template:
+    metadata:
+      labels:
+        app: rick-and-morty
+    spec:
+      terminationGracePeriodSeconds: 100
+      enableServiceLinks: false
+      containers:
+      - name: rick-and-morty
+        image: yuvals41/rick-and-morty:latest
+        imagePullPolicy: "Always"
+        command:
+        - python3
+        args:
+        - app.py
+        ports:
+        - name: rick-and-morty
+          containerPort: 8080
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /healthcheck
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          timeoutSeconds: 30
+          failureThreshold: 7
+        livenessProbe:
+          httpGet:
+            path: /healthcheck
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          timeoutSeconds: 30
+          failureThreshold: 5
+        resources:
+          requests:
+            memory: 128Mi
+            cpu: 250m
+          limits:
+            memory: 1Gi
+            #cpu: "1500m"
+        securityContext:
+          runAsGroup: 1500
+          runAsNonRoot: true
+          runAsUser: 1500
